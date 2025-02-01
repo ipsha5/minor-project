@@ -11,7 +11,7 @@ This project focuses on developing deep learning solutions for multi-class image
 22053171
 
 ## Features
-1. **Image Preprocessing:** Resize, crop, normalize pixel values, and handle color channels.
+1. **Image Preprocessing:** Resize, crop, normalize pixel values, and handle color channels. 
 2. **Model Development:** Build CNNs from scratch or use pre-trained models like ResNet or VGG. Consider using ensemble 
    methods to improve accuracy.
 3. **Class Imbalance Solutions:** Apply data augmentation techniques to increase the number of samples from the minority 
