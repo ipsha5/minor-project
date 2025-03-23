@@ -1,0 +1,2398 @@
+
+\documentclass{article}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegray}{rgb}{0.9,0.9,0.9}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{codegray},
+    commentstyle=\color{blue},
+    keywordstyle=\color{red},
+    numberstyle=\tiny\color{gray},
+    stringstyle=\color{green},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\begin{document}
+\title{Chest Pneumonia Detection Model - LaTeX Code}
+\author{Using CNN}
+\maketitle
+
+\section*{Python Code}
+
+\begin{lstlisting}[style=mystyle,language=Python]
+ !mkdir -p ~/.kaggle
+
+!cp kaggle.json ~/.kaggle/
+
+!chmod 600 ~/.kaggle/kaggle.json
+
+!kaggle datasets download -d paultimothymooney/chest-xray-pneumonia
+
+import zipfile
+
+
+
+zip_data = zipfile.ZipFile('/content/chest-xray-pneumonia.zip')
+
+zip_data.extractall()
+
+zip_data.close()
+
+import tensorflow as tf
+
+from tensorflow import keras
+
+from keras import Sequential
+
+from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, BatchNormalization, Dropout
+
+import numpy as np
+
+import matplotlib.pyplot as plt
+
+import cv2
+
+import os
+
+import pandas as pd
+
+import seaborn as sns
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+import shutil
+
+img = cv2.imread('/content/chest_xray/chest_xray/test/NORMAL/IM-0001-0001.jpeg')
+
+
+
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+
+
+plt.imshow(img_rgb)
+
+plt.axis("off")
+
+plt.show()
+
+img.shape
+
+# trying an alternative
+
+
+
+import PIL
+
+from PIL import Image
+
+image = Image.open('/content/chest_xray/chest_xray/test/NORMAL/IM-0001-0001.jpeg')
+
+image
+
+dataset_path = "/content/chest_xray"
+
+categories = ["train", "test", "val"]
+
+
+
+for category in categories:
+
+    class_path = os.path.join(dataset_path, category)
+
+    print(f"\n --> {category.upper()} Set:")
+
+    for class_name in os.listdir(class_path):
+
+        class_folder = os.path.join(class_path, class_name)
+
+        print(f"  - {class_name}: {len(os.listdir(class_folder))} images")
+
+class_counts = {"Class": [], "Count": []}
+
+for category in ["train", "test", "val"]:
+
+    for class_name in ["NORMAL", "PNEUMONIA"]:
+
+        class_path = os.path.join(dataset_path, category, class_name)
+
+        class_counts["Class"].append(f"{category}-{class_name}")
+
+        class_counts["Count"].append(len(os.listdir(class_path)))
+
+
+
+df = pd.DataFrame(class_counts)
+
+
+
+plt.figure(figsize=(10, 5))
+
+sns.barplot(x="Class", y="Count", data=df, palette="Blues_r")
+
+plt.xticks(rotation=30)
+
+plt.title("Class Distribution in Dataset")
+
+plt.show()
+
+normal_train_dir = "/content/chest_xray/train/NORMAL"
+
+augmented_dir = "/content/chest_xray/train/NORMAL_AUGMENTED"
+
+
+
+os.makedirs(augmented_dir, exist_ok=True)
+
+
+
+datagen = ImageDataGenerator(
+
+    rotation_range=5,  # Reduced to avoid unnatural rotation
+
+    width_shift_range=0.05,  # Minimized to avoid large misalignment
+
+    height_shift_range=0.05,  # Minimized to retain lung structures
+
+    shear_range=0.05,
+
+    brightness_range=[0.9, 1.1],  # Helps simulate different X-ray exposures
+
+    zoom_range=0.05,  # Small zoom-in to avoid excessive feature alteration
+
+    fill_mode="reflect"
+
+)
+
+
+
+normal_images = [f for f in os.listdir(normal_train_dir) if f.endswith(".jpeg")]
+
+
+
+num_augmented = 0
+
+target_augmented = 1242  # Number of additional images needed calculated by 3875/1.5 = 2583 => 2583-1341 = 1242
+
+
+
+for img_name in normal_images:
+
+    if num_augmented >= target_augmented:
+
+        break
+
+
+
+    img_path = os.path.join(normal_train_dir, img_name)
+
+    img = cv2.imread(img_path)
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    img = np.expand_dims(img, axis=0)
+
+
+
+    aug_iter = datagen.flow(img, batch_size=1, save_to_dir=augmented_dir, save_prefix="aug", save_format="jpeg")
+
+
+
+    for i in range(1):
+
+        next(aug_iter)
+
+        num_augmented += 1
+
+        if num_augmented >= target_augmented:
+
+            break
+
+
+
+print(f"Successfully generated {num_augmented} augmented images in {augmented_dir}!")
+
+for img_name in os.listdir(augmented_dir):
+
+    src = os.path.join(augmented_dir, img_name)
+
+    dst = os.path.join(normal_train_dir, img_name)
+
+    shutil.move(src, dst)
+
+
+
+print("Augmented images added to NORMAL training set!")
+
+class_counts = {"Class": [], "Count": []}
+
+for category in ["train", "test", "val"]:
+
+    for class_name in ["NORMAL", "PNEUMONIA"]:
+
+        class_path = os.path.join(dataset_path, category, class_name)
+
+        class_counts["Class"].append(f"{category}-{class_name}")
+
+        class_counts["Count"].append(len(os.listdir(class_path)))
+
+
+
+df = pd.DataFrame(class_counts)
+
+
+
+plt.figure(figsize=(10, 5))
+
+sns.barplot(x="Class", y="Count", data=df, palette="Blues_r")
+
+plt.xticks(rotation=30)
+
+plt.title("Class Distribution in Dataset")
+
+plt.show()
+
+
+
+
+normal_val_dir = "/content/chest_xray/val/NORMAL"
+
+augmented_normal_val_dir = "/content/chest_xray/val/NORMAL_AUGMENTED"
+
+
+
+pneumonia_val_dir = "/content/chest_xray/val/PNEUMONIA"
+
+augmented_pneumonia_val_dir = "/content/chest_xray/val/PNEUMONIA_AUGMENTED"
+
+
+
+os.makedirs(augmented_normal_val_dir, exist_ok=True)
+
+os.makedirs(augmented_pneumonia_val_dir, exist_ok=True)
+
+
+
+datagen = ImageDataGenerator(
+
+    rotation_range=5,  # Reduced to avoid unnatural rotation
+
+    width_shift_range=0.05,  # Minimized to avoid large misalignment
+
+    height_shift_range=0.05,  # Minimized to retain lung structures
+
+    shear_range=0.05,
+
+    brightness_range=[0.9, 1.1],  # Helps simulate different X-ray exposures
+
+    zoom_range=0.05,  # Small zoom-in to avoid excessive feature alteration
+
+    fill_mode="reflect"
+
+)
+
+
+
+normal_images = [f for f in os.listdir(normal_val_dir) if f.endswith(".jpeg")]
+
+pneumonia_images = [f for f in os.listdir(pneumonia_val_dir) if f.endswith(".jpeg")]
+
+
+
+target_augmented_NORMAL = 250
+
+target_augmented_PNEUMONIA = 380
+
+
+
+def augment_images(image_list, input_dir, output_dir, target_count):
+
+    num_augmented = 0
+
+    num_originals = len(image_list)
+
+
+
+    while num_augmented < target_count:
+
+        for img_name in image_list:
+
+            if num_augmented >= target_count:
+
+                break
+
+
+
+            img_path = os.path.join(input_dir, img_name)
+
+            img = cv2.imread(img_path)
+
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+            img = np.expand_dims(img, axis=0)
+
+
+
+            aug_iter = datagen.flow(img, batch_size=1, save_to_dir=output_dir,
+
+                                    save_prefix="aug", save_format="jpeg")
+
+
+
+            for _ in range(target_count // num_originals + 1):
+
+                next(aug_iter)
+
+                num_augmented += 1
+
+                if num_augmented >= target_count:
+
+                    break
+
+
+
+    print(f"Successfully generated {num_augmented} augmented images in {output_dir}!")
+
+
+
+augment_images(normal_images, normal_val_dir, augmented_normal_val_dir, target_augmented_NORMAL)
+
+
+
+augment_images(pneumonia_images, pneumonia_val_dir, augmented_pneumonia_val_dir, target_augmented_PNEUMONIA)
+
+
+augmented_normal_val_dir = "/content/chest_xray/val/NORMAL_AUGMENTED"
+
+augmented_pneumonia_val_dir = "/content/chest_xray/val/PNEUMONIA_AUGMENTED"
+
+
+
+normal_train_dir = "/content/chest_xray/val/NORMAL"
+
+pneumonia_train_dir = "/content/chest_xray/val/PNEUMONIA"
+
+
+
+for img_name in os.listdir(augmented_normal_val_dir):
+
+    src = os.path.join(augmented_normal_val_dir, img_name)
+
+    dst = os.path.join(normal_train_dir, img_name)
+
+    shutil.move(src, dst)
+
+
+
+print(f"Successfully moved augmented NORMAL images to {normal_train_dir}!")
+
+
+
+for img_name in os.listdir(augmented_pneumonia_val_dir):
+
+    src = os.path.join(augmented_pneumonia_val_dir, img_name)
+
+    dst = os.path.join(pneumonia_train_dir, img_name)
+
+    shutil.move(src, dst)
+
+
+
+print(f"Successfully moved augmented PNEUMONIA images to {pneumonia_train_dir}!")
+
+class_counts = {"Class": [], "Count": []}
+
+for category in ["train", "test", "val"]:
+
+    for class_name in ["NORMAL", "PNEUMONIA"]:
+
+        class_path = os.path.join(dataset_path, category, class_name)
+
+        class_counts["Class"].append(f"{category}-{class_name}")
+
+        class_counts["Count"].append(len(os.listdir(class_path)))
+
+
+
+df = pd.DataFrame(class_counts)
+
+
+
+plt.figure(figsize=(10, 5))
+
+sns.barplot(x="Class", y="Count", data=df, palette="Blues_r")
+
+plt.xticks(rotation=30)
+
+plt.title("Class Distribution in Dataset")
+
+plt.show()
+
+dataset_path = "/content/chest_xray"
+
+categories = ["train", "test", "val"]
+
+
+
+for category in categories:
+
+    class_path = os.path.join(dataset_path, category)
+
+    print(f"\n --> {category.upper()} Set:")
+
+    for class_name in os.listdir(class_path):
+
+        class_folder = os.path.join(class_path, class_name)
+
+        print(f"  - {class_name}: {len(os.listdir(class_folder))} images")
+
+import random
+
+
+
+def show_sample_images(category, num_samples=3):
+
+    class_path = os.path.join(dataset_path, "train", category)
+
+    images = random.sample(os.listdir(class_path), num_samples)
+
+
+
+    plt.figure(figsize=(10, 4))
+
+    for i, img_name in enumerate(images):
+
+        img_path = os.path.join(class_path, img_name)
+
+        img = cv2.imread(img_path)
+
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+
+
+        plt.subplot(1, num_samples, i+1)
+
+        plt.imshow(img_rgb, cmap='gray')
+
+        plt.title(category)
+
+        plt.axis("off")
+
+
+
+    plt.show()
+
+
+
+show_sample_images("NORMAL")
+
+show_sample_images("PNEUMONIA")
+
+import numpy as np
+
+
+
+def calculate_brightness(img):
+
+    return np.mean(img)
+
+
+
+brightness_values = {"NORMAL": [], "PNEUMONIA": []}
+
+
+
+for category in ["NORMAL", "PNEUMONIA"]:
+
+    class_path = os.path.join(dataset_path, "train", category)
+
+    for img_name in os.listdir(class_path)[:200]:
+
+        img = cv2.imread(os.path.join(class_path, img_name), cv2.IMREAD_GRAYSCALE)
+
+        brightness_values[category].append(calculate_brightness(img))
+
+
+
+plt.figure(figsize=(8, 4))
+
+sns.histplot(brightness_values["NORMAL"], color="blue", label="Normal", kde=True)
+
+sns.histplot(brightness_values["PNEUMONIA"], color="red", label="Pneumonia", kde=True)
+
+plt.legend()
+
+plt.title("Brightness Distribution")
+
+plt.show()
+
+def variance_of_laplacian(image):
+
+    return cv2.Laplacian(image, cv2.CV_64F).var()
+
+
+
+blurriness_scores = []
+
+for category in ["NORMAL", "PNEUMONIA"]:
+
+    class_path = os.path.join(dataset_path, "train", category)
+
+    for img_name in os.listdir(class_path)[:200]:
+
+        img = cv2.imread(os.path.join(class_path, img_name), cv2.IMREAD_GRAYSCALE)
+
+        blurriness_scores.append(variance_of_laplacian(img))
+
+
+
+plt.figure(figsize=(8, 4))
+
+sns.histplot(blurriness_scores, bins=30, kde=True)
+
+plt.title("Blurriness Score Distribution")
+
+plt.show()
+
+import numpy as np
+
+
+
+img_shapes = []
+
+for category in ["NORMAL", "PNEUMONIA"]:
+
+    class_path = os.path.join(dataset_path, "train", category)
+
+    for img_name in os.listdir(class_path)[:200]:
+
+        img = cv2.imread(os.path.join(class_path, img_name))
+
+        img_shapes.append(img.shape)
+
+
+
+img_shapes = np.array(img_shapes)
+
+print("Unique Image Shapes:", np.unique(img_shapes, axis=0))
+
+resized = cv2.resize(img, (256,256))
+
+resized.shape
+
+plt.imshow(resized)
+
+normalized = resized / 255.0
+
+normalized
+
+mean = np.mean(normalized)
+
+std = np.std(normalized)
+
+
+
+standardized = (normalized - mean) / std
+
+
+
+print("Mean after standardization:", np.mean(standardized))
+
+print("Std after standardization:", np.std(standardized))
+
+shutil.rmtree('/content/chest_xray/train/NORMAL_AUGMENTED', ignore_errors=True)
+
+shutil.rmtree('/content/chest_xray/val/NORMAL_AUGMENTED', ignore_errors=True)
+
+shutil.rmtree('/content/chest_xray/val/PNEUMONIA_AUGMENTED', ignore_errors=True)
+
+from tensorflow.keras.applications import ResNet50
+
+from tensorflow.keras.layers import Dense, Flatten, Dropout, GlobalAveragePooling2D
+
+from tensorflow.keras.models import Model
+
+base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(256, 256, 3))
+
+base_model.trainable = False
+
+x = base_model.output
+
+x = GlobalAveragePooling2D()(x)
+
+x = Dense(512, activation='relu')(x)
+
+x = Dropout(0.5)(x)
+
+x = Dense(256, activation='relu')(x)
+
+x = Dropout(0.3)(x)
+
+output = Dense(1, activation='sigmoid')(x)
+
+
+
+model = Model(inputs=base_model.input, outputs=output)
+
+model.summary()
+
+train_dir = '/content/chest_xray/train'
+
+val_dir = '/content/chest_xray/val'
+
+
+
+train_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+
+    train_dir,
+
+    target_size=(256, 256),
+
+    batch_size=32,
+
+    class_mode='binary')
+
+
+
+val_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+
+    val_dir,
+
+    target_size=(256, 256),
+
+    batch_size=32,
+
+    class_mode='binary')
+
+
+
+print("Classes in train:", train_generator.class_indices)
+
+print("Classes in val:", val_generator.class_indices)
+
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+
+              loss='binary_crossentropy',
+
+              metrics=['accuracy'])
+
+
+
+history = model.fit(train_generator, validation_data=val_generator, epochs=10)
+
+model.save("pneumonia_model.h5")
+
+plt.plot(history.history['accuracy'],color='r',label='Train_Accuracy')
+
+plt.plot(history.history['val_accuracy'],color='b',label='Val_Accuracy')
+
+plt.title('Measuring the Model Accuracy')
+
+plt.xlabel('Number of Epochs')
+
+plt.ylabel('Model Accuracy')
+
+plt.legend()
+
+plt.show()
+
+plt.plot(history.history['loss'],color='r',label='Training_loss')
+
+plt.plot(history.history['val_loss'],color='b',label='Val_loss')
+
+plt.title('Measuring the Model Loss')
+
+plt.xlabel('Number of Epochs')
+
+plt.ylabel('Model Loss')
+
+plt.legend()
+
+plt.show()
+
+from tensorflow.keras.preprocessing import image
+
+
+
+
+
+def generate_gradcam(model, img_array, layer_name):
+
+    grad_model = Model(inputs=model.input, outputs=[model.get_layer(layer_name).output, model.output])
+
+
+
+    with tf.GradientTape() as tape:
+
+        conv_outputs, predictions = grad_model(img_array)
+
+        loss = predictions[:, tf.argmax(predictions[0])]
+
+
+
+    grads = tape.gradient(loss, conv_outputs)
+
+    if grads is None:
+
+        raise ValueError("Gradients are None. Check the input image and model.")
+
+
+
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    heatmap = tf.reduce_mean(tf.multiply(pooled_grads, conv_outputs), axis=-1)
+
+
+
+    heatmap = np.maximum(heatmap, 0)
+
+    heatmap = np.squeeze(heatmap)
+
+    heatmap = np.nan_to_num(heatmap)
+
+
+
+    if np.max(heatmap) != 0:
+
+        heatmap /= np.max(heatmap)
+
+
+
+    return heatmap
+
+
+
+def overlay_heatmap(img, heatmap, alpha=0.5):
+
+    heatmap = cv2.resize(heatmap, (img.shape[1], img.shape[0]))
+
+    heatmap = np.uint8(255 * heatmap)
+
+    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+
+
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+    superimposed_img = cv2.addWeighted(img, alpha, heatmap, 1 - alpha, 0)
+
+
+
+    return cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
+
+
+
+def preprocess_image(image_path, img_size=(256, 256)):
+
+    img = image.load_img(image_path, target_size=img_size)
+
+    img_array = image.img_to_array(img)
+
+    img_array = np.expand_dims(img_array, axis=0)
+
+    img_array = img_array / 255.0
+
+
+
+    return img_array, np.uint8(img_array[0] * 255)
+
+
+
+def process_dataset(model, dataset_path, layer_name, output_path):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        for filename in os.listdir(input_folder):
+
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+
+                image_path = os.path.join(input_folder, filename)
+
+                img_array, original_img = preprocess_image(image_path)
+
+
+
+                try:
+
+                    heatmap = generate_gradcam(model, img_array, layer_name)
+
+                    superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                    output_file = os.path.join(output_folder, filename)
+
+                    plt.imsave(output_file, superimposed_img)
+
+                    print(f"Saved: {output_file}")
+
+                except Exception as e:
+
+                    print(f"Error processing {image_path}: {e}")
+
+
+
+def process_few_samples(model, dataset_path, layer_name, output_path, num_samples=5):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        all_images = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        selected_images = random.sample(all_images, min(num_samples, len(all_images)))
+
+
+
+        for filename in selected_images:
+
+            image_path = os.path.join(input_folder, filename)
+
+            img_array, original_img = preprocess_image(image_path)
+
+
+
+            try:
+
+                heatmap = generate_gradcam(model, img_array, layer_name)
+
+                superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                output_file = os.path.join(output_folder, filename)
+
+                plt.imsave(output_file, superimposed_img)
+
+                print(f"Saved: {output_file}")
+
+
+
+                plt.figure(figsize=(6, 6))
+
+                plt.imshow(superimposed_img)
+
+                plt.axis('off')
+
+                plt.title(f"Grad-CAM: {category} - {filename}")
+
+                plt.show()
+
+
+
+            except Exception as e:
+
+                print(f"Error processing {image_path}: {e}")
+
+
+
+def process_specific_images(model, image_paths, layer_name):
+
+    for image_path in image_paths:
+
+        img_array, original_img = preprocess_image(image_path)
+
+
+
+        try:
+
+            heatmap = generate_gradcam(model, img_array, layer_name)
+
+            superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+            plt.figure(figsize=(6, 6))
+
+            plt.imshow(superimposed_img)
+
+            plt.axis('off')
+
+            plt.title(f"Grad-CAM: {os.path.basename(image_path)}")
+
+            plt.show()
+
+
+
+        except Exception as e:
+
+            print(f"Error processing {image_path}: {e}")
+
+
+
+dataset_path = "/content/chest_xray/train"
+
+output_path = "/content/chest_xray_gradcam"
+
+layer_name = "conv5_block3_out"
+
+
+
+def process_few_samples(model, dataset_path, layer_name, output_path, num_samples=5):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        all_images = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        selected_images = random.sample(all_images, min(num_samples, len(all_images)))  # Avoid index errors
+
+
+
+        for filename in selected_images:
+
+            image_path = os.path.join(input_folder, filename)
+
+            img_array, original_img = preprocess_image(image_path)
+
+
+
+            try:
+
+                heatmap = generate_gradcam(model, img_array, layer_name)
+
+                superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                output_file = os.path.join(output_folder, filename)
+
+                plt.imsave(output_file, superimposed_img)
+
+                print(f"Saved: {output_file}")
+
+
+
+                plt.figure(figsize=(6, 6))
+
+                plt.imshow(superimposed_img)
+
+                plt.axis('off')
+
+                plt.title(f"Grad-CAM: {category} - {filename}")
+
+                plt.show()
+
+
+
+            except Exception as e:
+
+                print(f"Error processing {image_path}: {e}")
+
+
+
+process_few_samples(model, dataset_path="/content/chest_xray/train",
+
+                    layer_name="conv5_block3_out", output_path="/content/chest_xray_gradcam",
+
+                    num_samples=5)
+
+model = tf.keras.models.load_model("/content/pneumonia_model.h5")
+
+
+
+test_dir = '/content/chest_xray/test'
+
+
+
+test_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+
+    test_dir,
+
+    target_size=(256, 256),
+
+    batch_size=1,
+
+    class_mode='binary',
+
+    shuffle=False)
+
+
+
+predictions = model.predict(test_generator)
+
+predicted_classes = (predictions > 0.5).astype("int")
+
+
+
+filenames = test_generator.filenames
+
+for i in range(len(predicted_classes)):
+
+    print(f"Image: {filenames[i]}, Predicted Class: {predicted_classes[i]}")
+
+test_loss, test_acc = model.evaluate(test_generator)
+
+
+
+plt.plot(history.history['accuracy'], color='r', label='Train Accuracy')
+
+plt.plot(history.history['val_accuracy'], color='b', label='Validation Accuracy')
+
+
+
+plt.axhline(y=test_acc, color='g', linestyle='--', label=f'Test Accuracy: {test_acc:.2f}')
+
+
+
+plt.title('Model Accuracy')
+
+plt.xlabel('Number of Epochs')
+
+plt.ylabel('Accuracy')
+
+plt.legend()
+
+plt.show()
+
+def process_test_samples(model, dataset_path, layer_name, output_path, num_samples=5):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        all_images = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        selected_images = random.sample(all_images, min(num_samples, len(all_images)))
+
+
+
+        for filename in selected_images:
+
+            image_path = os.path.join(input_folder, filename)
+
+            img_array, original_img = preprocess_image(image_path)
+
+
+
+            try:
+
+                heatmap = generate_gradcam(model, img_array, layer_name)
+
+                superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                output_file = os.path.join(output_folder, filename)
+
+                plt.imsave(output_file, superimposed_img)
+
+                print(f"Saved: {output_file}")
+
+
+
+                plt.figure(figsize=(6, 6))
+
+                plt.imshow(superimposed_img)
+
+                plt.axis('off')
+
+                plt.title(f"Grad-CAM: {category} - {filename}")
+
+                plt.show()
+
+
+
+            except Exception as e:
+
+                print(f"Error processing {image_path}: {e}")
+
+
+
+process_test_samples(model, dataset_path="/content/chest_xray/test",
+
+                     layer_name="conv5_block3_out",
+
+                     output_path="/content/chest_xray_gradcam_test",
+
+                     num_samples=5)
+
+from sklearn.metrics import classification_report
+
+
+
+true_labels = test_generator.classes
+
+predicted_labels = (model.predict(test_generator) > 0.5).astype("int32")
+
+
+
+print(classification_report(true_labels, predicted_labels, target_names=["Normal", "Pneumonia"]))
+
+
+from sklearn.metrics import confusion_matrix
+
+import seaborn as sns
+
+
+
+cm = confusion_matrix(true_labels, predicted_labels)
+
+
+
+plt.figure(figsize=(5, 4))
+
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Normal", "Pneumonia"], yticklabels=["Normal", "Pneumonia"])
+
+plt.xlabel("Predicted Label")
+
+plt.ylabel("True Label")
+
+plt.title("Confusion Matrix")
+
+plt.show()
+
+import tensorflow as tf
+
+from tensorflow.keras.applications import DenseNet121
+
+from tensorflow.keras.layers import Dense, Dropout, GlobalAveragePooling2D
+
+from tensorflow.keras.models import Model
+
+
+
+base_model = DenseNet121(weights='imagenet', include_top=False, input_shape=(256, 256, 3))
+
+base_model.trainable = False
+
+
+
+x = GlobalAveragePooling2D()(base_model.output)
+
+x = Dense(512, activation='relu')(x)
+
+x = Dropout(0.5)(x)
+
+x = Dense(256, activation='relu')(x)
+
+x = Dropout(0.5)(x)
+
+output = Dense(1, activation='sigmoid')(x)
+
+
+
+model_densenet = Model(inputs=base_model.input, outputs=output)
+
+
+
+model_densenet.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+
+                      loss='binary_crossentropy', metrics=['accuracy'])
+
+model_densenet.summary()
+
+train_dir = '/content/chest_xray/train'
+
+val_dir = '/content/chest_xray/val'
+
+
+
+train_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+
+    train_dir,
+
+    target_size=(256, 256),
+
+    batch_size=32,
+
+    class_mode='binary')
+
+
+
+val_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+
+    val_dir,
+
+    target_size=(256, 256),
+
+    batch_size=32,
+
+    class_mode='binary')
+
+
+
+print("Classes in train:", train_generator.class_indices)
+
+print("Classes in val:", val_generator.class_indices)
+
+model_densenet.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+
+              loss='binary_crossentropy',
+
+              metrics=['accuracy'])
+
+
+
+history = model_densenet.fit(train_generator, validation_data=val_generator, epochs=10)
+
+model_densenet.save("pneumonia_model_densenet.h5")
+
+plt.plot(history.history['accuracy'],color='r',label='Train_Accuracy')
+
+plt.plot(history.history['val_accuracy'],color='b',label='Val_Accuracy')
+
+plt.title('Measuring the Model Accuracy')
+
+plt.xlabel('Number of Epochs')
+
+plt.ylabel('Model Accuracy')
+
+plt.legend()
+
+plt.show()
+
+plt.plot(history.history['loss'],color='r',label='Training_loss')
+
+plt.plot(history.history['val_loss'],color='b',label='Val_loss')
+
+plt.title('Measuring the Model Loss')
+
+plt.xlabel('Number of Epochs')
+
+plt.ylabel('Model Loss')
+
+plt.legend()
+
+plt.show()
+
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+
+from tensorflow.keras.preprocessing import image
+
+
+
+def generate_gradcam(model_densenet, img_array, layer_name):
+
+    grad_model = Model(inputs=model_densenet.input, outputs=[model_densenet.get_layer(layer_name).output, model_densenet.output])
+
+
+
+    with tf.GradientTape() as tape:
+
+        conv_outputs, predictions = grad_model(img_array)
+
+        loss = predictions[:, tf.argmax(predictions[0])]
+
+
+
+    grads = tape.gradient(loss, conv_outputs)
+
+    if grads is None:
+
+        raise ValueError("Gradients are None. Check the input image and model.")
+
+
+
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    heatmap = tf.reduce_mean(tf.multiply(pooled_grads, conv_outputs), axis=-1)
+
+
+
+    heatmap = np.maximum(heatmap, 0)
+
+    heatmap = np.squeeze(heatmap)
+
+    heatmap = np.nan_to_num(heatmap)
+
+
+
+    if np.max(heatmap) != 0:
+
+        heatmap /= np.max(heatmap)
+
+
+
+    return heatmap
+
+
+
+def overlay_heatmap(img, heatmap, alpha=0.5):
+
+    heatmap = cv2.resize(heatmap, (img.shape[1], img.shape[0]))
+
+    heatmap = np.uint8(255 * heatmap)
+
+    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+
+
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+    superimposed_img = cv2.addWeighted(img, alpha, heatmap, 1 - alpha, 0)
+
+
+
+    return cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
+
+
+
+def preprocess_image(image_path, img_size=(256, 256)):
+
+    img = image.load_img(image_path, target_size=img_size)
+
+    img_array = image.img_to_array(img)
+
+    img_array = np.expand_dims(img_array, axis=0)
+
+    img_array = img_array / 255.0
+
+
+
+    return img_array, np.uint8(img_array[0] * 255)
+
+
+
+def process_dataset(model_densenet, dataset_path, layer_name, output_path):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        for filename in os.listdir(input_folder):
+
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+
+                image_path = os.path.join(input_folder, filename)
+
+                img_array, original_img = preprocess_image(image_path)
+
+
+
+                try:
+
+                    heatmap = generate_gradcam(model_densenet, img_array, layer_name)
+
+                    superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                    output_file = os.path.join(output_folder, filename)
+
+                    plt.imsave(output_file, superimposed_img)
+
+                    print(f"Saved: {output_file}")
+
+                except Exception as e:
+
+                    print(f"Error processing {image_path}: {e}")
+
+
+
+def process_few_samples(model_densenet, dataset_path, layer_name, output_path, num_samples=5):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        all_images = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        selected_images = random.sample(all_images, min(num_samples, len(all_images)))
+
+
+
+        for filename in selected_images:
+
+            image_path = os.path.join(input_folder, filename)
+
+            img_array, original_img = preprocess_image(image_path)
+
+
+
+            try:
+
+                heatmap = generate_gradcam(model_densenet, img_array, layer_name)
+
+                superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                output_file = os.path.join(output_folder, filename)
+
+                plt.imsave(output_file, superimposed_img)
+
+                print(f"Saved: {output_file}")
+
+
+
+                plt.figure(figsize=(6, 6))
+
+                plt.imshow(superimposed_img)
+
+                plt.axis('off')
+
+                plt.title(f"Grad-CAM: {category} - {filename}")
+
+                plt.show()
+
+
+
+            except Exception as e:
+
+                print(f"Error processing {image_path}: {e}")
+
+
+
+def process_specific_images(model_densenet, image_paths, layer_name):
+
+    for image_path in image_paths:
+
+        img_array, original_img = preprocess_image(image_path)
+
+
+
+        try:
+
+            heatmap = generate_gradcam(model_densenet, img_array, layer_name)
+
+            superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+            plt.figure(figsize=(6, 6))
+
+            plt.imshow(superimposed_img)
+
+            plt.axis('off')
+
+            plt.title(f"Grad-CAM: {os.path.basename(image_path)}")
+
+            plt.show()
+
+
+
+        except Exception as e:
+
+            print(f"Error processing {image_path}: {e}")
+
+
+
+dataset_path = "/content/chest_xray/train"
+
+output_path = "/content/chest_xray_gradcam_densenet"
+
+layer_name = "conv5_block16_concat"
+
+
+
+def process_few_samples(model_densenet, dataset_path, layer_name, output_path, num_samples=5):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        all_images = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        selected_images = random.sample(all_images, min(num_samples, len(all_images)))
+
+
+
+        for filename in selected_images:
+
+            image_path = os.path.join(input_folder, filename)
+
+            img_array, original_img = preprocess_image(image_path)
+
+
+
+            try:
+
+                heatmap = generate_gradcam(model_densenet, img_array, layer_name)
+
+                superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                output_file = os.path.join(output_folder, filename)
+
+                plt.imsave(output_file, superimposed_img)
+
+                print(f"Saved: {output_file}")
+
+
+
+                plt.figure(figsize=(6, 6))
+
+                plt.imshow(superimposed_img)
+
+                plt.axis('off')
+
+                plt.title(f"Grad-CAM: {category} - {filename}")
+
+                plt.show()
+
+
+
+            except Exception as e:
+
+                print(f"Error processing {image_path}: {e}")
+
+
+
+process_few_samples(model_densenet, dataset_path="/content/chest_xray/train",
+
+                    layer_name="conv5_block16_concat", output_path="/content/chest_xray_gradcam_densenet",
+
+                    num_samples=5)
+
+model_densenet = tf.keras.models.load_model("/content/pneumonia_model_densenet.h5")
+
+
+
+test_dir = '/content/chest_xray/test'
+
+
+
+test_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+
+    test_dir,
+
+    target_size=(256, 256),
+
+    batch_size=1,
+
+    class_mode='binary',
+
+    shuffle=False)
+
+
+
+predictions = model_densenet.predict(test_generator)
+
+predicted_classes = (predictions > 0.5).astype("int")
+
+
+
+filenames = test_generator.filenames
+
+for i in range(len(predicted_classes)):
+
+    print(f"Image: {filenames[i]}, Predicted Class: {predicted_classes[i]}")
+
+test_loss, test_acc = model_densenet.evaluate(test_generator)
+
+
+
+plt.plot(history.history['accuracy'], color='r', label='Train Accuracy')
+
+plt.plot(history.history['val_accuracy'], color='b', label='Validation Accuracy')
+
+
+
+plt.axhline(y=test_acc, color='g', linestyle='--', label=f'Test Accuracy: {test_acc:.2f}')
+
+
+
+plt.title('Model Accuracy')
+
+plt.xlabel('Number of Epochs')
+
+plt.ylabel('Accuracy')
+
+plt.legend()
+
+plt.show()
+
+def process_test_samples(model_densenet, dataset_path, layer_name, output_path, num_samples=5):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        all_images = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        selected_images = random.sample(all_images, min(num_samples, len(all_images)))
+
+        for filename in selected_images:
+
+            image_path = os.path.join(input_folder, filename)
+
+            img_array, original_img = preprocess_image(image_path)
+
+
+
+            try:
+
+                heatmap = generate_gradcam(model_densenet, img_array, layer_name)
+
+                superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                output_file = os.path.join(output_folder, filename)
+
+                plt.imsave(output_file, superimposed_img)
+
+                print(f"Saved: {output_file}")
+
+
+
+                plt.figure(figsize=(6, 6))
+
+                plt.imshow(superimposed_img)
+
+                plt.axis('off')
+
+                plt.title(f"Grad-CAM: {category} - {filename}")
+
+                plt.show()
+
+
+
+            except Exception as e:
+
+                print(f"Error processing {image_path}: {e}")
+
+
+
+process_test_samples(model_densenet, dataset_path="/content/chest_xray/test",
+
+                     layer_name="conv5_block16_concat",
+
+                     output_path="/content/chest_xray_gradcam_test_densenet",
+
+                     num_samples=5)
+
+from sklearn.metrics import classification_report
+
+
+
+true_labels = test_generator.classes
+
+predicted_labels = (model_densenet.predict(test_generator) > 0.5).astype("int32")
+
+
+
+print(classification_report(true_labels, predicted_labels, target_names=["Normal", "Pneumonia"]))
+
+from sklearn.metrics import confusion_matrix
+
+import seaborn as sns
+
+
+
+cm = confusion_matrix(true_labels, predicted_labels)
+
+
+
+plt.figure(figsize=(5, 4))
+
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Normal", "Pneumonia"], yticklabels=["Normal", "Pneumonia"])
+
+plt.xlabel("Predicted Label")
+
+plt.ylabel("True Label")
+
+plt.title("Confusion Matrix")
+
+plt.show()
+
+import tensorflow as tf
+
+from tensorflow.keras.applications import InceptionV3
+
+from tensorflow.keras.layers import GlobalAveragePooling2D, Dense, Dropout
+
+from tensorflow.keras.models import Model
+
+
+
+base_model = InceptionV3(weights='imagenet', include_top=False, input_shape=(256,256,3))
+
+base_model.trainable = False
+
+
+
+x = GlobalAveragePooling2D()(base_model.output)
+
+x = Dense(512, activation='relu')(x)
+
+x = Dropout(0.5)(x)
+
+x = Dense(256, activation='relu')(x)
+
+x = Dropout(0.5)(x)
+
+output = Dense(1, activation='sigmoid')(x)
+
+
+
+model_googlenet = Model(inputs=base_model.input, outputs=output)
+
+
+
+model_googlenet.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+
+                        loss='binary_crossentropy', metrics=['accuracy'])
+
+
+
+model_googlenet.summary()
+
+train_dir = '/content/chest_xray/train'
+
+val_dir = '/content/chest_xray/val'
+
+
+
+train_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+
+    train_dir,
+
+    target_size=(256, 256),
+
+    batch_size=32,
+
+    class_mode='binary')
+
+
+
+val_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+
+    val_dir,
+
+    target_size=(256, 256),
+
+    batch_size=32,
+
+    class_mode='binary')
+
+
+
+print("Classes in train:", train_generator.class_indices)
+
+print("Classes in val:", val_generator.class_indices)
+
+model_googlenet.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+
+              loss='binary_crossentropy',
+
+              metrics=['accuracy'])
+
+
+
+history = model_googlenet.fit(train_generator, validation_data=val_generator, epochs=10)
+
+model_googlenet.save("pneumonia_model_googlenet.h5")
+
+plt.plot(history.history['accuracy'],color='r',label='Train_Accuracy')
+
+plt.plot(history.history['val_accuracy'],color='b',label='Val_Accuracy')
+
+plt.title('Measuring the Model Accuracy')
+
+plt.xlabel('Number of Epochs')
+
+plt.ylabel('Model Accuracy')
+
+plt.legend()
+
+plt.show()
+
+plt.plot(history.history['loss'],color='r',label='Training_loss')
+
+plt.plot(history.history['val_loss'],color='b',label='Val_loss')
+
+plt.title('Measuring the Model Loss')
+
+plt.xlabel('Number of Epochs')
+
+plt.ylabel('Model Loss')
+
+plt.legend()
+
+plt.show()
+
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+
+from tensorflow.keras.preprocessing import image
+
+
+
+def generate_gradcam(model_googlenet, img_array, layer_name):
+
+    grad_model = Model(inputs=model_googlenet.input, outputs=[model_googlenet.get_layer(layer_name).output, model_googlenet.output])
+
+
+
+    with tf.GradientTape() as tape:
+
+        conv_outputs, predictions = grad_model(img_array)
+
+        loss = predictions[:, tf.argmax(predictions[0])]
+
+
+
+    grads = tape.gradient(loss, conv_outputs)
+
+    if grads is None:
+
+        raise ValueError("Gradients are None. Check the input image and model.")
+
+
+
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    heatmap = tf.reduce_mean(tf.multiply(pooled_grads, conv_outputs), axis=-1)
+
+
+
+    heatmap = np.maximum(heatmap, 0)
+
+    heatmap = np.squeeze(heatmap)
+
+    heatmap = np.nan_to_num(heatmap)
+
+
+
+    if np.max(heatmap) != 0:
+
+        heatmap /= np.max(heatmap)
+
+
+
+    return heatmap
+
+
+
+def overlay_heatmap(img, heatmap, alpha=0.5):
+
+    heatmap = cv2.resize(heatmap, (img.shape[1], img.shape[0]))
+
+    heatmap = np.uint8(255 * heatmap)
+
+    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+
+
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+    superimposed_img = cv2.addWeighted(img, alpha, heatmap, 1 - alpha, 0)
+
+
+
+    return cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
+
+
+
+def preprocess_image(image_path, img_size=(256, 256)):
+
+    img = image.load_img(image_path, target_size=img_size)
+
+    img_array = image.img_to_array(img)
+
+    img_array = np.expand_dims(img_array, axis=0)
+
+    img_array = img_array / 255.0
+
+
+
+    return img_array, np.uint8(img_array[0] * 255)
+
+
+
+def process_dataset(model_googlenet, dataset_path, layer_name, output_path):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        for filename in os.listdir(input_folder):
+
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+
+                image_path = os.path.join(input_folder, filename)
+
+                img_array, original_img = preprocess_image(image_path)
+
+
+
+                try:
+
+                    heatmap = generate_gradcam(model_googlenet, img_array, layer_name)
+
+                    superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                    output_file = os.path.join(output_folder, filename)
+
+                    plt.imsave(output_file, superimposed_img)
+
+                    print(f"Saved: {output_file}")
+
+                except Exception as e:
+
+                    print(f"Error processing {image_path}: {e}")
+
+
+
+def process_few_samples(model_googlenet, dataset_path, layer_name, output_path, num_samples=5):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        all_images = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        selected_images = random.sample(all_images, min(num_samples, len(all_images)))
+
+
+
+        for filename in selected_images:
+
+            image_path = os.path.join(input_folder, filename)
+
+            img_array, original_img = preprocess_image(image_path)
+
+
+
+            try:
+
+                heatmap = generate_gradcam(model_googlenet, img_array, layer_name)
+
+                superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                output_file = os.path.join(output_folder, filename)
+
+                plt.imsave(output_file, superimposed_img)
+
+                print(f"Saved: {output_file}")
+
+
+
+                plt.figure(figsize=(6, 6))
+
+                plt.imshow(superimposed_img)
+
+                plt.axis('off')
+
+                plt.title(f"Grad-CAM: {category} - {filename}")
+
+                plt.show()
+
+
+
+            except Exception as e:
+
+                print(f"Error processing {image_path}: {e}")
+
+
+
+def process_specific_images(model_googlenet, image_paths, layer_name):
+
+    for image_path in image_paths:
+
+        img_array, original_img = preprocess_image(image_path)
+
+
+
+        try:
+
+            heatmap = generate_gradcam(model_googlenet, img_array, layer_name)
+
+            superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+            plt.figure(figsize=(6, 6))
+
+            plt.imshow(superimposed_img)
+
+            plt.axis('off')
+
+            plt.title(f"Grad-CAM: {os.path.basename(image_path)}")
+
+            plt.show()
+
+
+
+        except Exception as e:
+
+            print(f"Error processing {image_path}: {e}")
+
+
+
+dataset_path = "/content/chest_xray/train"
+
+output_path = "/content/chest_xray_gradcam_googlenet"
+
+layer_name = "mixed10"
+
+
+
+def process_few_samples(model_googlenet, dataset_path, layer_name, output_path, num_samples=5):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        all_images = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        selected_images = random.sample(all_images, min(num_samples, len(all_images)))
+
+
+
+        for filename in selected_images:
+
+            image_path = os.path.join(input_folder, filename)
+
+            img_array, original_img = preprocess_image(image_path)
+
+
+
+            try:
+
+                heatmap = generate_gradcam(model_googlenet, img_array, layer_name)
+
+                superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                output_file = os.path.join(output_folder, filename)
+
+                plt.imsave(output_file, superimposed_img)
+
+                print(f"Saved: {output_file}")
+
+
+
+                plt.figure(figsize=(6, 6))
+
+                plt.imshow(superimposed_img)
+
+                plt.axis('off')
+
+                plt.title(f"Grad-CAM: {category} - {filename}")
+
+                plt.show()
+
+
+
+            except Exception as e:
+
+                print(f"Error processing {image_path}: {e}")
+
+
+
+process_few_samples(model_googlenet, dataset_path="/content/chest_xray/train",
+
+                    layer_name="mixed10", output_path="/content/chest_xray_gradcam_googlenet",
+
+                    num_samples=5)
+
+model_googlenet = tf.keras.models.load_model("/content/pneumonia_model_googlenet.h5")
+
+
+
+test_dir = '/content/chest_xray/test'
+
+
+
+test_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+
+    test_dir,
+
+    target_size=(256, 256),
+
+    batch_size=1,
+
+    class_mode='binary',
+
+    shuffle=False)
+
+
+
+predictions = model_googlenet.predict(test_generator)
+
+predicted_classes = (predictions > 0.5).astype("int")
+
+
+
+filenames = test_generator.filenames
+
+for i in range(len(predicted_classes)):
+
+    print(f"Image: {filenames[i]}, Predicted Class: {predicted_classes[i]}")
+
+test_loss, test_acc = model_googlenet.evaluate(test_generator)
+
+
+
+plt.plot(history.history['accuracy'], color='r', label='Train Accuracy')
+
+plt.plot(history.history['val_accuracy'], color='b', label='Validation Accuracy')
+
+
+
+plt.axhline(y=test_acc, color='g', linestyle='--', label=f'Test Accuracy: {test_acc:.2f}')
+
+
+
+plt.title('Model Accuracy')
+
+plt.xlabel('Number of Epochs')
+
+plt.ylabel('Accuracy')
+
+plt.legend()
+
+plt.show()
+
+def process_test_samples(model_googlenet, dataset_path, layer_name, output_path, num_samples=5):
+
+    categories = ["NORMAL", "PNEUMONIA"]
+
+    os.makedirs(output_path, exist_ok=True)
+
+
+
+    for category in categories:
+
+        input_folder = os.path.join(dataset_path, category)
+
+        output_folder = os.path.join(output_path, category)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+
+
+        all_images = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        selected_images = random.sample(all_images, min(num_samples, len(all_images)))
+
+        for filename in selected_images:
+
+            image_path = os.path.join(input_folder, filename)
+
+            img_array, original_img = preprocess_image(image_path)
+
+
+
+            try:
+
+                heatmap = generate_gradcam(model_googlenet, img_array, layer_name)
+
+                superimposed_img = overlay_heatmap(original_img, heatmap)
+
+
+
+                output_file = os.path.join(output_folder, filename)
+
+                plt.imsave(output_file, superimposed_img)
+
+                print(f"Saved: {output_file}")
+
+
+
+                plt.figure(figsize=(6, 6))
+
+                plt.imshow(superimposed_img)
+
+                plt.axis('off')
+
+                plt.title(f"Grad-CAM: {category} - {filename}")
+
+                plt.show()
+
+
+
+            except Exception as e:
+
+                print(f"Error processing {image_path}: {e}")
+
+
+
+process_test_samples(model_googlenet, dataset_path="/content/chest_xray/test",
+
+                     layer_name="mixed10",
+
+                     output_path="/content/chest_xray_gradcam_test_googlenet",
+
+                     num_samples=5)
+
+from sklearn.metrics import classification_report
+
+
+
+true_labels = test_generator.classes
+
+predicted_labels = (model_googlenet.predict(test_generator) > 0.5).astype("int32")
+
+
+
+print(classification_report(true_labels, predicted_labels, target_names=["Normal", "Pneumonia"]))
+
+from sklearn.metrics import confusion_matrix
+
+import seaborn as sns
+
+
+
+cm = confusion_matrix(true_labels, predicted_labels)
+
+
+
+plt.figure(figsize=(5, 4))
+
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Normal", "Pneumonia"], yticklabels=["Normal", "Pneumonia"])
+
+plt.xlabel("Predicted Label")
+
+plt.ylabel("True Label")
+
+plt.title("Confusion Matrix")
+
+plt.show()
+\end{lstlisting}
+
+\end{document}
