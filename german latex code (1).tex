@@ -1,0 +1,36 @@
+
+\documentclass{article}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\title{German Traffic Sign Classification}
+\author{Nikita Chaurasia}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This document presents an analysis of German traffic sign classification using deep learning. The project leverages Kaggle datasets and machine learning techniques.
+
+\section{Methodology}
+\subsection{Dataset Preparation}
+The dataset is downloaded from Kaggle using the following commands:
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+from google.colab import files
+files.upload()
+
+!mkdir -p ~/.kaggle
+!cp kaggle.json ~/.kaggle/
+!chmod 600 ~/.kaggle/kaggle.json
+\end{lstlisting}
+
+\subsection{Model Training}
+The model was trained using convolutional neural networks (CNNs) with TensorFlow and Keras.
+
+\section{Results}
+The classification accuracy and Grad-CAM visualizations were analyzed.
+
+\end{document}
