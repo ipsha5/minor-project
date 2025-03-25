@@ -1,0 +1,1085 @@
+
+\documentclass{article}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!10},
+  frame=single
+}
+
+\begin{document}
+
+\section*{Converted Code from Jupyter Notebook}
+
+\subsection*{Code Cell 1}
+\begin{lstlisting}
+from google.colab import files
+files.upload()
+\end{lstlisting}
+
+\subsection*{Code Cell 2}
+\begin{lstlisting}
+!mkdir -p ~/.kaggle
+!cp kaggle.json ~/.kaggle/
+!chmod 600 ~/.kaggle/kaggle.json
+
+\end{lstlisting}
+
+\subsection*{Code Cell 3}
+\begin{lstlisting}
+!kaggle datasets download -d emmarex/plantdisease
+\end{lstlisting}
+
+\subsection*{Code Cell 4}
+\begin{lstlisting}
+import zipfile
+
+zip_data = zipfile.ZipFile('/content/plantdisease.zip')
+zip_data.extractall()
+zip_data.close()
+\end{lstlisting}
+
+\subsection*{Code Cell 5}
+\begin{lstlisting}
+import tensorflow as tf
+from tensorflow import keras
+from keras import Sequential
+from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, BatchNormalization, Dropout
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+import os
+import pandas as pd
+import seaborn as sns
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import shutil
+\end{lstlisting}
+
+\subsection*{Code Cell 6}
+\begin{lstlisting}
+folder_path = "/content/plantvillage"
+
+shutil.rmtree(folder_path)
+\end{lstlisting}
+
+\subsection*{Code Cell 7}
+\begin{lstlisting}
+img = cv2.imread('/content/PlantVillage/Pepper__bell___Bacterial_spot/01613cd0-d3cd-4e96-945c-a312002037bf___JR_B.Spot 3262.JPG')
+
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+plt.imshow(img_rgb)
+plt.axis("off")
+plt.show()
+\end{lstlisting}
+
+\subsection*{Code Cell 8}
+\begin{lstlisting}
+import os
+
+# Path to the main folder (change it as needed)
+main_folder = "/content/PlantVillage"
+
+# List all subdirectories
+subfolders = [f.name for f in os.scandir(main_folder) if f.is_dir()]
+
+print("📂 Subfolder Names:", subfolders)
+\end{lstlisting}
+
+\subsection*{Code Cell 9}
+\begin{lstlisting}
+import os
+import random
+import matplotlib.pyplot as plt
+import cv2
+
+def visualize_samples(dataset_path, num_samples=5):
+    classes = os.listdir(dataset_path)
+    fig, axes = plt.subplots(len(classes), num_samples, figsize=(15, 10))
+
+    for i, class_name in enumerate(classes):
+        class_path = os.path.join(dataset_path, class_name)
+        images = os.listdir(class_path)
+        random_images = random.sample(images, min(num_samples, len(images)))
+
+        for j, img_name in enumerate(random_images):
+            img_path = os.path.join(class_path, img_name)
+            img = cv2.imread(img_path)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
+            axes[i, j].imshow(img)
+            axes[i, j].axis("off")
+
+        axes[i, 0].set_ylabel(class_name, fontsize=10)
+
+    plt.tight_layout()
+    plt.show()
+
+# Call function with dataset path
+visualize_samples("/content/PlantVillage")
+\end{lstlisting}
+
+\subsection*{Code Cell 10}
+\begin{lstlisting}
+def detect_blur(image_path, threshold=100):
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    laplacian_var = cv2.Laplacian(image, cv2.CV_64F).var()
+
+    if laplacian_var < threshold:
+        print(f"⚠ Blurry Image Detected: {image_path} (Variance: {laplacian_var:.2f})")
+    return laplacian_var
+
+# Example usage
+image_path = "/content/PlantVillage/Tomato__Target_Spot/002213fb-b620-4593-b9ac-6a6cc119b100___Com.G_TgS_FL 8360.JPG"
+blur_score = detect_blur(image_path)
+print(f"Laplacian Variance Score: {blur_score:.2f}")
+\end{lstlisting}
+
+\subsection*{Code Cell 11}
+\begin{lstlisting}
+def plot_color_histogram(image_path):
+    image = cv2.imread(image_path)
+    channels = ('b', 'g', 'r')
+    plt.figure(figsize=(8, 5))
+
+    for i, col in enumerate(channels):
+        hist = cv2.calcHist([image], [i], None, [256], [0, 256])
+        plt.plot(hist, color=col, label=col.upper())
+
+    plt.title("Color Histogram")
+    plt.xlabel("Pixel Intensity")
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.show()
+
+# Example usage
+plot_color_histogram("/content/PlantVillage/Tomato__Target_Spot/002213fb-b620-4593-b9ac-6a6cc119b100___Com.G_TgS_FL 8360.JPG")
+\end{lstlisting}
+
+\subsection*{Code Cell 12}
+\begin{lstlisting}
+
+def edge_detection(image_path):
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    edges = cv2.Canny(image, 100, 200)
+
+    plt.figure(figsize=(6, 6))
+    plt.imshow(edges, cmap='gray')
+    plt.title("Edge Detection")
+    plt.axis("off")
+    plt.show()
+
+# Example usage
+edge_detection("/content/PlantVillage/Potato___Late_blight/006cc01a-1888-4326-9b62-a65cb55a6377___RS_LB 5207.JPG")
+\end{lstlisting}
+
+\subsection*{Code Cell 13}
+\begin{lstlisting}
+import os
+
+dataset_path = "/content/PlantVillage"
+categories = [
+    'Tomato_Septoria_leaf_spot', 'Potato___Early_blight', 'Pepper__bell___healthy',
+    'Tomato_healthy', 'Tomato__Tomato_YellowLeaf__Curl_Virus', 'Tomato__Tomato_mosaic_virus',
+    'Tomato_Late_blight', 'Tomato_Early_blight', 'Potato___healthy', 'Pepper__bell___Bacterial_spot',
+    'Tomato_Spider_mites_Two_spotted_spider_mite', 'Tomato__Target_Spot', 'Tomato_Bacterial_spot',
+    'Potato___Late_blight', 'Tomato_Leaf_Mold'
+]
+
+for category in categories:
+    class_path = os.path.join(dataset_path, category)
+
+    # Count only image files (not folders)
+    if os.path.exists(class_path) and os.path.isdir(class_path):
+        image_count = sum(1 for file in os.listdir(class_path) if os.path.isfile(os.path.join(class_path, file)))
+        print(f"\n --> {category.upper()} Set: {image_count} images")
+    else:
+        print(f"\n --> {category.upper()} Set: Not found")
+
+\end{lstlisting}
+
+\subsection*{Code Cell 14}
+\begin{lstlisting}
+import os
+import matplotlib.pyplot as plt
+
+dataset_path = "/content/PlantVillage"
+categories = [
+    'Tomato_Septoria_leaf_spot', 'Potato___Early_blight', 'Pepper__bell___healthy',
+    'Tomato_healthy', 'Tomato__Tomato_YellowLeaf__Curl_Virus', 'Tomato__Tomato_mosaic_virus',
+    'Tomato_Late_blight', 'Tomato_Early_blight', 'Potato___healthy', 'Pepper__bell___Bacterial_spot',
+    'Tomato_Spider_mites_Two_spotted_spider_mite', 'Tomato__Target_Spot', 'Tomato_Bacterial_spot',
+    'Potato___Late_blight', 'Tomato_Leaf_Mold'
+]
+
+category_counts = {}
+
+for category in categories:
+    class_path = os.path.join(dataset_path, category)
+
+    # Count only image files
+    if os.path.exists(class_path) and os.path.isdir(class_path):
+        image_count = sum(1 for file in os.listdir(class_path) if os.path.isfile(os.path.join(class_path, file)))
+        category_counts[category] = image_count
+    else:
+        category_counts[category] = 0  # If folder doesn't exist
+
+# Sort categories by count (optional)
+category_counts = dict(sorted(category_counts.items(), key=lambda x: x[1], reverse=True))
+
+# Plot the data
+plt.figure(figsize=(12, 6))
+plt.barh(list(category_counts.keys()), list(category_counts.values()), color='skyblue')
+plt.xlabel("Number of Images")
+plt.ylabel("Categories")
+plt.title("Number of Images per Category in PlantVillage Dataset")
+plt.gca().invert_yaxis()  # To display highest count on top
+plt.show()
+\end{lstlisting}
+
+\subsection*{Code Cell 15}
+\begin{lstlisting}
+import os
+print(os.listdir("/content/PlantVillage/Tomato_Early_blight"))
+\end{lstlisting}
+
+\subsection*{Code Cell 16}
+\begin{lstlisting}
+import os
+import cv2
+import random
+import numpy as np
+import albumentations as A
+from albumentations.core.composition import OneOf
+from albumentations.pytorch import ToTensorV2
+from tqdm import tqdm
+
+# Define dataset path
+dataset_path = "/content/PlantVillage"
+
+# List of categories that need augmentation (all after 'Tomato_Target_Spot')
+categories = [
+    'Potato___Early_blight', 'Tomato_Early_blight', 'Potato___Late_blight',
+    'Pepper__bell___Bacterial_spot', 'Tomato_Leaf_Mold', 'Tomato__Tomato_mosaic_virus', 'Potato___healthy'
+]
+
+# Target images per class
+TARGET_COUNT = 1500
+
+# Augmentation pipeline using Albumentations
+augment = A.Compose([
+    A.HorizontalFlip(p=0.5),
+    A.Rotate(limit=20, p=0.7),
+    A.RandomBrightnessContrast(p=0.5),
+    A.GaussNoise(var_limit=(10.0, 50.0), p=0.3),
+    A.CLAHE(clip_limit=4.0, tile_grid_size=(8,8), p=0.3),
+    ToTensorV2()
+])
+
+# Function to save augmented images
+def save_augmented_image(image, save_path, count):
+    aug_img = augment(image=image)["image"]
+    aug_img = aug_img.permute(1, 2, 0).numpy()  # Convert back to OpenCV format
+    cv2.imwrite(f"{save_path}/aug_{count}.jpg", aug_img * 255)
+
+# Loop through each category
+for category in categories:
+    class_path = os.path.join(dataset_path, category)
+    save_path = os.path.join(class_path, "augmented")
+
+    # Create folder if not exists
+    os.makedirs(save_path, exist_ok=True)
+
+    # List all images in the class
+    images = [img for img in os.listdir(class_path) if img.lower().endswith(('png', 'jpg', 'jpeg'))]
+
+    # If no images found, skip augmentation
+    if not images:
+        print(f"⚠️ Warning: No images found in {category}. Skipping augmentation.")
+        continue
+
+    # Count existing images (original + augmented)
+    total_images = len(images) + len(os.listdir(save_path))
+
+    # Number of new images required
+    extra_needed = TARGET_COUNT - total_images
+
+    # If already sufficient images, skip augmentation
+    if extra_needed <= 0:
+        print(f"✅ {category} already has {total_images} images. Skipping augmentation.")
+        continue
+
+    print(f"📢 Augmenting {category}: Need {extra_needed} more images")
+
+    # Generate augmented images
+    for i in tqdm(range(extra_needed), desc=f"Augmenting {category}"):
+        img_name = random.choice(images)
+        img_path = os.path.join(class_path, img_name)
+
+        # Read image
+        img = cv2.imread(img_path)
+        if img is None:
+            print(f"⚠️ Skipping corrupted image: {img_name}")
+            continue
+
+        # Save augmented image
+        save_augmented_image(img, save_path, i)
+
+print("✅ Data augmentation complete!")
+\end{lstlisting}
+
+\subsection*{Code Cell 17}
+\begin{lstlisting}
+import os
+import matplotlib.pyplot as plt
+
+# Define dataset path
+dataset_path = "/content/PlantVillage"
+
+# List of categories
+categories = [
+    'Tomato_Septoria_leaf_spot', 'Potato___Early_blight', 'Pepper__bell___healthy', 'Tomato_healthy',
+    'Tomato__Tomato_YellowLeaf__Curl_Virus', 'Tomato__Tomato_mosaic_virus', 'Tomato_Late_blight',
+    'Tomato_Early_blight', 'Potato___healthy', 'Pepper__bell___Bacterial_spot',
+    'Tomato_Spider_mites_Two_spotted_spider_mite', 'Tomato__Target_Spot', 'Tomato_Bacterial_spot',
+    'Potato___Late_blight', 'Tomato_Leaf_Mold'
+]
+
+# Store category names and image counts
+category_counts = []
+
+for category in categories:
+    class_path = os.path.join(dataset_path, category)
+
+    # Count images (original + augmented)
+    num_images = len([img for img in os.listdir(class_path) if img.lower().endswith(('png', 'jpg', 'jpeg'))])
+
+    augmented_path = os.path.join(class_path, "augmented")
+    if os.path.exists(augmented_path):
+        num_images += len([img for img in os.listdir(augmented_path) if img.lower().endswith(('png', 'jpg', 'jpeg'))])
+
+    category_counts.append((category, num_images))
+
+# Sort categories by image count
+category_counts.sort(key=lambda x: x[1], reverse=True)
+
+# Extract category names and counts
+categories_sorted, counts_sorted = zip(*category_counts)
+
+# Plot the updated graph
+plt.figure(figsize=(15, 6))
+plt.barh(categories_sorted, counts_sorted, color="skyblue")
+plt.xlabel("Number of Images")
+plt.ylabel("Categories")
+plt.title("Updated Number of Images per Category in PlantVillage Dataset")
+plt.grid(axis="x", linestyle="--", alpha=0.6)
+plt.show()
+\end{lstlisting}
+
+\subsection*{Code Cell 18}
+\begin{lstlisting}
+import os
+import shutil
+
+# Define the dataset root
+dataset_path = "PlantVillage"
+
+# Iterate through each class folder
+for class_name in os.listdir(dataset_path):
+    class_path = os.path.join(dataset_path, class_name)
+
+    # Check if it's a directory (i.e., a class folder)
+    if os.path.isdir(class_path):
+        augmented_path = os.path.join(class_path, "augmented")
+
+        # If "augmented" folder exists, move images
+        if os.path.exists(augmented_path):
+            print(f"📂 Moving images from: {augmented_path}")
+
+            # Move all images from "augmented" to the main class folder
+            for img in os.listdir(augmented_path):
+                img_path = os.path.join(augmented_path, img)
+                if img.endswith(('.png', '.jpg', '.jpeg')):  # Ensure only image files are moved
+                    shutil.move(img_path, os.path.join(class_path, img))
+
+            # Remove the empty "augmented" folder
+            os.rmdir(augmented_path)
+            print(f"✅ Removed empty folder: {augmented_path}")
+
+print("🎯 All augmented images moved, and 'augmented' subfolders deleted successfully!")
+\end{lstlisting}
+
+\subsection*{Code Cell 19}
+\begin{lstlisting}
+import os
+
+def print_directory_structure(root_dir, level=0):
+    """ Recursively prints the directory structure and file counts. """
+    if not os.path.exists(root_dir):
+        print(f"❌ Path '{root_dir}' does not exist!")
+        return
+
+    # Iterate through the root directory
+    for item in sorted(os.listdir(root_dir)):
+        item_path = os.path.join(root_dir, item)
+
+        # Check if it's a folder
+        if os.path.isdir(item_path):
+            num_files = len([f for f in os.listdir(item_path) if f.endswith(('.png', '.jpg', '.jpeg', '.PNG', '.JPG'))])
+            print(" " * (level * 4) + f"📁 {item}: {num_files} images")
+
+            # Recursively print subdirectories
+            print_directory_structure(item_path, level + 1)
+
+# Set the dataset directory
+dataset_path = "PlantVillage"
+
+# Print the directory structure
+print(f"\n📂 Directory Structure of: {dataset_path}\n")
+print_directory_structure(dataset_path)
+\end{lstlisting}
+
+\subsection*{Code Cell 20}
+\begin{lstlisting}
+import os
+import shutil
+import random
+
+# Define paths
+dataset_dir = "PlantVillage"
+train_dir = "PlantVillage_Split/train"
+test_dir = "PlantVillage_Split/test"
+
+# Create directories
+os.makedirs(train_dir, exist_ok=True)
+os.makedirs(test_dir, exist_ok=True)
+
+# Define split ratio
+split_ratio = 0.8  # 80% train, 20% test
+
+# Iterate over each class folder
+for class_name in os.listdir(dataset_dir):
+    class_path = os.path.join(dataset_dir, class_name)
+
+    if os.path.isdir(class_path):  # Check if it's a folder
+        images = os.listdir(class_path)
+        random.shuffle(images)  # Shuffle for randomness
+
+        split_index = int(len(images) * split_ratio)
+        train_images, test_images = images[:split_index], images[split_index:]
+
+        # Create class subdirectories
+        os.makedirs(os.path.join(train_dir, class_name), exist_ok=True)
+        os.makedirs(os.path.join(test_dir, class_name), exist_ok=True)
+
+        # Move files
+        for img in train_images:
+            shutil.copy(os.path.join(class_path, img), os.path.join(train_dir, class_name, img))
+        for img in test_images:
+            shutil.copy(os.path.join(class_path, img), os.path.join(test_dir, class_name, img))
+
+print("Dataset successfully split into Train and Test sets!")
+\end{lstlisting}
+
+\subsection*{Code Cell 21}
+\begin{lstlisting}
+import os
+
+def check_directory_structure(root_dir):
+    print(f"\n📂 Directory Structure of: {root_dir}\n")
+
+    if not os.path.exists(root_dir):
+        print(f"❌ Error: {root_dir} does not exist.")
+        return
+
+    for class_name in sorted(os.listdir(root_dir)):
+        class_path = os.path.join(root_dir, class_name)
+        if os.path.isdir(class_path):
+            num_images = len(os.listdir(class_path))
+            print(f"📁 {class_name}: {num_images} images")
+
+# Paths to train and test directories
+train_dir = "PlantVillage_Split/train"
+test_dir = "PlantVillage_Split/test"
+
+# Check train and test directory structures
+check_directory_structure(train_dir)
+check_directory_structure(test_dir)
+\end{lstlisting}
+
+\subsection*{Code Cell 22}
+\begin{lstlisting}
+import tensorflow as tf
+
+train_dir = "PlantVillage_Split/train"
+test_dir = "PlantVillage_Split/test"
+img_size = (224, 224)  # Adjust based on model
+
+# Load images
+train_data = tf.keras.preprocessing.image_dataset_from_directory(
+    train_dir, image_size=img_size, batch_size=32, label_mode="categorical"
+)
+test_data = tf.keras.preprocessing.image_dataset_from_directory(
+    test_dir, image_size=img_size, batch_size=32, label_mode="categorical"
+)
+\end{lstlisting}
+
+\subsection*{Code Cell 23}
+\begin{lstlisting}
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+
+model = Sequential([
+    Conv2D(32, (3,3), activation="relu", input_shape=(224,224,3)),
+    MaxPooling2D(2,2),
+
+    Conv2D(64, (3,3), activation="relu"),
+    MaxPooling2D(2,2),
+
+    Conv2D(128, (3,3), activation="relu"),
+    MaxPooling2D(2,2),
+
+    Flatten(),
+    Dense(128, activation="relu"),
+    Dropout(0.5),
+    Dense(15, activation="softmax")  # 15 classes in your dataset
+])
+
+model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+model.summary()
+\end{lstlisting}
+
+\subsection*{Code Cell 24}
+\begin{lstlisting}
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
+
+model = Sequential([
+    Conv2D(32, (3,3), activation="relu", input_shape=(224,224,3)),
+    BatchNormalization(),
+    MaxPooling2D(2,2),
+
+    Conv2D(64, (3,3), activation="relu"),
+    BatchNormalization(),
+    MaxPooling2D(2,2),
+
+    Conv2D(128, (3,3), activation="relu"),
+    BatchNormalization(),
+    MaxPooling2D(2,2),
+
+    Flatten(),
+    Dense(256, activation="relu"),  # Increased neurons
+    Dropout(0.3),  # Reduced Dropout
+    Dense(15, activation="softmax")  # 15 classes
+])
+
+model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+model.summary()
+
+\end{lstlisting}
+
+\subsection*{Code Cell 25}
+\begin{lstlisting}
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+datagen = ImageDataGenerator(
+    rescale=1./255,  # Normalize images
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode="nearest"
+)
+
+\end{lstlisting}
+
+\subsection*{Code Cell 26}
+\begin{lstlisting}
+from tensorflow.keras.optimizers import SGD
+
+model.compile(
+    loss="categorical_crossentropy",
+    optimizer=SGD(learning_rate=0.01, momentum=0.9),
+    metrics=["accuracy"]
+)
+
+\end{lstlisting}
+
+\subsection*{Code Cell 27}
+\begin{lstlisting}
+from tensorflow.keras.applications import MobileNetV2
+from tensorflow.keras.layers import GlobalAveragePooling2D
+
+base_model = MobileNetV2(input_shape=(224,224,3), include_top=False, weights="imagenet")
+base_model.trainable = False  # Freeze layers
+
+model = Sequential([
+    base_model,
+    GlobalAveragePooling2D(),
+    Dense(256, activation="relu"),
+    Dropout(0.3),
+    Dense(15, activation="softmax")
+])
+
+model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+
+\end{lstlisting}
+
+\subsection*{Code Cell 28}
+\begin{lstlisting}
+import matplotlib.pyplot as plt
+
+# Train the model and store the history
+history = model.fit(train_data, validation_data=test_data, epochs=30)
+
+# Check available history keys
+print(history.history.keys())  # This should print available metrics
+
+# Get the correct metric names
+train_acc = history.history.get("accuracy") or history.history.get("categorical_accuracy") or history.history.get("sparse_categorical_accuracy")
+val_acc = history.history.get("val_accuracy") or history.history.get("val_categorical_accuracy") or history.history.get("val_sparse_categorical_accuracy")
+
+# Ensure metrics exist before plotting
+if train_acc is None or val_acc is None:
+    print("Error: Accuracy metrics not found in history. Check model compilation.")
+else:
+    # Plot Accuracy
+    plt.figure(figsize=(12, 4))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(train_acc, label="Train Accuracy")
+    plt.plot(val_acc, label="Validation Accuracy")
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.title("CNN Model - Accuracy")
+
+    # Plot Loss
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history["loss"], label="Train Loss")
+    plt.plot(history.history["val_loss"], label="Validation Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.title("CNN Model - Loss")
+
+    plt.show()
+
+\end{lstlisting}
+
+\subsection*{Code Cell 29}
+\begin{lstlisting}
+model.evaluate(test_data)
+\end{lstlisting}
+
+\subsection*{Code Cell 30}
+\begin{lstlisting}
+from sklearn.metrics import classification_report
+import numpy as np
+
+y_true = []
+y_pred = []
+
+for images, labels in test_data:
+    preds = model.predict(images)
+    y_pred.extend(np.argmax(preds, axis=1))
+    y_true.extend(np.argmax(labels.numpy(), axis=1))
+
+print(classification_report(y_true, y_pred))
+\end{lstlisting}
+
+\subsection*{Code Cell 31}
+\begin{lstlisting}
+model.save("plant_disease_cnn.h5")
+print("Model saved successfully!")
+\end{lstlisting}
+
+\subsection*{Code Cell 32}
+\begin{lstlisting}
+from tensorflow.keras.models import load_model
+
+# Load the saved model
+model = load_model("plant_disease_cnn.h5")
+print("Model loaded successfully!")
+\end{lstlisting}
+
+\subsection*{Code Cell 33}
+\begin{lstlisting}
+for layer in model.layers:
+    print(layer.name)
+\end{lstlisting}
+
+\subsection*{Code Cell 34}
+\begin{lstlisting}
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+
+import numpy as np
+
+# Extract images (X_test) and labels (y_test) from test dataset
+X_test = []
+y_test = []
+
+for images, labels in test_data:
+    X_test.append(images.numpy())   # Convert tensor to NumPy array
+    y_test.append(labels.numpy())   # Convert labels to NumPy array
+
+# Convert list to NumPy arrays
+X_test = np.concatenate(X_test, axis=0)
+y_test = np.concatenate(y_test, axis=0)
+
+# Ensure X_test and y_test are defined
+# If y_test is one-hot encoded, convert it to class labels
+y_true = np.argmax(y_test, axis=1)  # True labels
+y_pred_cnn = np.argmax(model.predict(X_test), axis=1)  # CNN model predictions
+
+# Compute confusion matrix
+cm_cnn = confusion_matrix(y_true, y_pred_cnn)
+class_labels = train_data.class_names  # Extracts class names from dataset
+# Plot confusion matrix
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm_cnn, annot=True, fmt='d', cmap='Blues', xticklabels=class_labels, yticklabels=class_labels)
+plt.xlabel("Predicted Labels")
+plt.ylabel("True Labels")
+plt.title("Confusion Matrix - CNN Model")
+plt.show()
+\end{lstlisting}
+
+\subsection*{Code Cell 35}
+\begin{lstlisting}
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+import os
+import random
+
+# Load your trained model
+model_path = "plant_disease_cnn.h5"
+if not os.path.exists(model_path):
+    raise ValueError(f"Model file not found: {model_path}")
+
+model = tf.keras.models.load_model(model_path)
+
+# Function to preprocess an image
+def preprocess_image(image_path, target_size=(224, 224)):
+    img = cv2.imread(image_path)
+    if img is None:
+        raise ValueError(f"Error loading image: {image_path}")  # Debugging
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, target_size)
+    img = img / 255.0  # Normalize pixel values
+    img_array = np.expand_dims(img, axis=0)  # Add batch dimension
+    return tf.convert_to_tensor(img_array, dtype=tf.float32), img
+
+# Get random images from a directory
+def get_random_images(image_dir, num_images=5):
+    if not os.path.exists(image_dir) or len(os.listdir(image_dir)) == 0:
+        raise ValueError(f"No images found in directory: {image_dir}")  # Debugging
+
+    all_images = [os.path.join(image_dir, img) for img in os.listdir(image_dir) if img.endswith((".jpg", ".png"))]
+
+    if len(all_images) == 0:
+        raise ValueError("No valid images found in the directory")  # Debugging
+
+    return random.sample(all_images, min(num_images, len(all_images)))
+
+# Directory containing images (Update this path)
+image_dir = "/content/PlantVillage_Split/train/Pepper__bell___Bacterial_spot"  # Update path
+
+# Get 5-10 random images
+num_images = 5
+image_paths = get_random_images(image_dir, num_images)
+
+print(f"Found {len(image_paths)} images. Processing...")
+print("Images selected:", image_paths)  # Debugging
+
+# Generate saliency maps for each image
+for image_path in image_paths:
+    print(f"Processing image: {image_path}")  # Debugging
+
+    img_tensor, original_img = preprocess_image(image_path)
+
+    # Get model predictions
+    predictions = model(img_tensor)
+    class_idx = tf.argmax(predictions[0])  # Select the predicted class
+
+    # Compute gradients of the class w.r.t the input image
+    with tf.GradientTape() as tape:
+        tape.watch(img_tensor)
+        predictions = model(img_tensor)
+        loss = predictions[:, class_idx]  # Focus on the predicted class
+
+    # Get the gradients
+    grads = tape.gradient(loss, img_tensor)
+
+    # Compute the absolute values and take the maximum along the color channels
+    saliency = tf.reduce_max(tf.abs(grads), axis=-1)[0].numpy()
+
+    # Normalize for visualization
+    saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min())
+
+    # Display the original image and the saliency map
+    plt.figure(figsize=(10, 5))
+
+    # Original Image
+    plt.subplot(1, 2, 1)
+    plt.imshow(original_img)
+    plt.axis("off")
+    plt.title("Original Image")
+
+    # Saliency Map
+    plt.subplot(1, 2, 2)
+    plt.imshow(saliency, cmap="jet")
+    plt.axis("off")
+    plt.title("Saliency Map")
+
+    plt.show(block=True)  # Ensure images are displayed
+\end{lstlisting}
+
+\subsection*{Code Cell 36}
+\begin{lstlisting}
+import tensorflow as tf
+
+train_dir = "PlantVillage_Split/train"
+test_dir = "PlantVillage_Split/test"
+img_size = (224, 224)  # Adjust based on model
+
+# Load images
+train_data = tf.keras.preprocessing.image_dataset_from_directory(
+    train_dir, image_size=img_size, batch_size=32, label_mode="categorical"
+)
+test_data = tf.keras.preprocessing.image_dataset_from_directory(
+    test_dir, image_size=img_size, batch_size=32, label_mode="categorical"
+)
+\end{lstlisting}
+
+\subsection*{Code Cell 37}
+\begin{lstlisting}
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
+# Define a Custom ResNet Model
+def build_resnet(input_shape=(224, 224, 3), num_classes=2, use_sparsity=False):
+    base_model = tf.keras.applications.ResNet50(
+        weights="imagenet",  # Use pretrained weights for better performance
+        input_shape=input_shape,
+        include_top=False
+    )
+
+    base_model.trainable = False  # Freeze base layers initially
+
+    model = models.Sequential([
+        layers.Input(shape=input_shape),
+
+        # Data Augmentation (Optional)
+        layers.RandomFlip("horizontal"),
+        layers.RandomRotation(0.2),
+
+        base_model,
+        layers.BatchNormalization(),
+        layers.GlobalAveragePooling2D(),
+        layers.Dense(256, activation="relu"),
+        layers.Dropout(0.5),
+        layers.Dense(num_classes, activation="softmax")
+    ])
+
+    return model
+
+# Detect Number of Classes
+num_classes = len(train_data.class_names)  # Ensure train_data is defined
+
+# Check if labels are sparse or one-hot encoded
+use_sparsity = False  # Change to True if using sparse labels
+
+# Create Model
+input_shape = (224, 224, 3)
+resnet_model = build_resnet(input_shape, num_classes, use_sparsity)
+
+# Compile the Model
+resnet_model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+    loss="sparse_categorical_crossentropy" if use_sparsity else "categorical_crossentropy",
+    metrics=["accuracy"]
+)
+
+# Print Model Summary
+resnet_model.summary()
+
+\end{lstlisting}
+
+\subsection*{Code Cell 38}
+\begin{lstlisting}
+history = resnet_model.fit(train_data, epochs=10, validation_data=test_data)
+\end{lstlisting}
+
+\subsection*{Code Cell 39}
+\begin{lstlisting}
+resnet_model.save("resnet_model.h5")
+\end{lstlisting}
+
+\subsection*{Code Cell 40}
+\begin{lstlisting}
+# Extract history from ResNet-50 training
+history_resnet = resnet_model.history
+
+# Plot Accuracy
+plt.figure(figsize=(12, 4))
+
+plt.subplot(1, 2, 1)
+plt.plot(history_resnet.history["accuracy"], label="Train Accuracy")
+plt.plot(history_resnet.history["val_accuracy"], label="Validation Accuracy")
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.title("ResNet-50 Model - Accuracy")
+
+# Plot Loss
+plt.subplot(1, 2, 2)
+plt.plot(history_resnet.history["loss"], label="Train Loss")
+plt.plot(history_resnet.history["val_loss"], label="Validation Loss")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.legend()
+plt.title("ResNet-50 Model - Loss")
+
+plt.show()
+\end{lstlisting}
+
+\subsection*{Code Cell 41}
+\begin{lstlisting}
+from sklearn.metrics import classification_report
+import numpy as np
+
+y_true = []
+y_pred = []
+
+for images, labels in test_data:
+    preds = resnet_model.predict(images)
+    y_pred.extend(np.argmax(preds, axis=1))
+    y_true.extend(np.argmax(labels.numpy(), axis=1))
+
+print(classification_report(y_true, y_pred))
+\end{lstlisting}
+
+\subsection*{Code Cell 42}
+\begin{lstlisting}
+import seaborn as sns
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+
+# Load test dataset
+test_datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255)
+
+test_data = test_datagen.flow_from_directory(
+    "/content/PlantVillage_Split/test",
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode="categorical",  # Ensure consistency with training data
+    shuffle=False
+)
+
+# Get true labels
+y_true = test_data.classes  # Directly extract class indices
+
+# Get model predictions
+y_pred_proba = resnet_model.predict(test_data)  # Predict on the generator
+y_pred = np.argmax(y_pred_proba, axis=1)  # Convert softmax probabilities to class labels
+
+# Compute confusion matrix
+cm_resnet = confusion_matrix(y_true, y_pred)
+
+# Extract class labels
+class_labels = list(test_data.class_indices.keys())
+
+# Plot confusion matrix
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm_resnet, annot=True, fmt="d", cmap="Blues", xticklabels=class_labels, yticklabels=class_labels)
+plt.xlabel("Predicted Labels")
+plt.ylabel("True Labels")
+plt.title("Confusion Matrix - ResNet-50 Model")
+plt.show()
+\end{lstlisting}
+
+\subsection*{Code Cell 43}
+\begin{lstlisting}
+print(resnet_model.input_shape)
+
+\end{lstlisting}
+
+\subsection*{Code Cell 44}
+\begin{lstlisting}
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load test dataset
+test_datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255)
+
+test_data = test_datagen.flow_from_directory(
+    "/content/PlantVillage_Split/test",
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode="categorical",  # Change to "sparse" if labels are integers
+    shuffle=False
+)
+
+# Load pre-trained model (Ensure it's defined)
+model = tf.keras.applications.ResNet50(weights="imagenet")  # Change to your trained model
+
+# Function to generate saliency map
+def compute_saliency_map(resnet_model, image, class_index):
+    image = tf.convert_to_tensor(image, dtype=tf.float32)  # Ensure it's a tensor
+    image = tf.expand_dims(image, axis=0)  # Add batch dimension
+
+    with tf.GradientTape() as tape:
+        tape.watch(image)
+        predictions = resnet_model(image)
+        loss = predictions[:, class_index]  # Target class score
+
+    # Compute gradients
+    grads = tape.gradient(loss, image)
+    saliency = tf.reduce_max(tf.abs(grads), axis=-1)[0]  # Take max gradient across channels
+
+    return saliency.numpy()
+
+# Function to plot saliency map
+def plot_saliency(image, saliency, title="Saliency Map"):
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+    ax[0].imshow(image)  # Image should be in correct format
+    ax[0].axis("off")
+    ax[0].set_title("Original Image")
+
+    ax[1].imshow(saliency, cmap="jet")
+    ax[1].axis("off")
+    ax[1].set_title(title)
+
+    plt.show()
+
+# Select random images from test dataset
+num_images = 5  # Change this to 10 if needed
+
+# Fetch images from dataset properly
+for _ in range(num_images):
+    image_batch, label_batch = next(test_data)  # ✅ Correct
+    image = image_batch[0]  # Select first image from batch
+    label = label_batch[0]  # Select corresponding label
+    class_index = np.argmax(label)  # Get predicted class
+
+    saliency = compute_saliency_map(model, image, class_index)
+    plot_saliency(image, saliency, title=f"Saliency Map - Class {class_index}")
+\end{lstlisting}
+
+\subsection*{Code Cell 45}
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\end{document}
